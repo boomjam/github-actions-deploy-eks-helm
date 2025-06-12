@@ -44,7 +44,7 @@ inputs:
     dry-run:
         description: 'Toggles dry-run flag for install/uninstall actions'
         required: false
-        default: false
+        default: "false"
     chart-path:
         description: 'The path of the chart.'
         required: false
@@ -99,6 +99,11 @@ inputs:
     helm-extra-args:
         description: 'Append any string containing any extra option that might escape the ones present in this action.'
         required: false
+    log-diff:
+        description: 'Log the diff of the helm chart before applying it, only works with install action.'
+        required: false
+        default: "false"
+
 runs:
     using: 'docker'
     image: 'Dockerfile'
@@ -132,3 +137,4 @@ runs:
         VERSION: ${{ inputs.version }}
         USE_SECRETS_VALS: ${{ inputs.use-secrets-vals }}
         HELM_EXTRA_ARGS: ${{ inputs.helm-extra-args }}
+        LOG_DIFF: ${{ inputs.log-diff }}

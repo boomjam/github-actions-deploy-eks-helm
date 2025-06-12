@@ -126,11 +126,13 @@ fi
 if [ "${HELM_ACTION}" == "install" ]; then
 
     if [ -n "${USE_SECRETS_VALS}" ]; then
-      HELM_COMMAND="helm secrets --backend vals --evaluate-templates true upgrade --install --timeout ${TIMEOUT}  ${HELM_AUTH}"
+      HELM_COMMAND="helm secrets --backend vals --evaluate-templates true upgrade --install --timeout ${TIMEOUT} ${HELM_AUTH}"
     else
       # Upgrade or install the chart.  This does it all.
-      HELM_COMMAND="helm upgrade --install --timeout ${TIMEOUT}  ${HELM_AUTH}"
+      HELM_COMMAND="helm upgrade --install --timeout ${TIMEOUT} ${HELM_AUTH}"
     fi
+
+    HELM_TEMPLATE_COMMAND="helm template --is-upgrade --timeout ${TIMEOUT} ${HELM_AUTH}"
 
     # If we should wait, then do so
     if [ -n "${HELM_WAIT}" ]; then
@@ -145,6 +147,7 @@ if [ "${HELM_ACTION}" == "install" ]; then
     for config_file in ${DEPLOY_CONFIG_FILES//,/ }
     do
         HELM_COMMAND="${HELM_COMMAND} -f ${config_file}"
+        HELM_TEMPLATE_COMMAND="${HELM_TEMPLATE_COMMAND} -f ${config_file}"
     done
 
     if [ -n "$DEPLOY_VALUES" ]; then
@@ -161,15 +164,18 @@ if [ "${HELM_ACTION}" == "install" ]; then
                 continue
             fi
             HELM_COMMAND="${HELM_COMMAND} --set ${value}"
+            HELM_TEMPLATE_COMMAND="${HELM_TEMPLATE_COMMAND} --set ${value}"
         done
     fi
 
     if [ -n "$VERSION" ]; then
         HELM_COMMAND="${HELM_COMMAND} --version ${VERSION}"
+        HELM_TEMPLATE_COMMAND="${HELM_TEMPLATE_COMMAND} --version ${VERSION}"
     fi
 
     if [ "${UPDATE_DEPS}" == "true" ]; then
         HELM_COMMAND="${HELM_COMMAND} --dependency-update"
+        HELM_TEMPLATE_COMMAND="${HELM_TEMPLATE_COMMAND} --dependency-update"
     fi
 
     if [ "${DRY_RUN}" == "true" ]; then
@@ -190,8 +196,12 @@ else
     exit 2
 fi
 
+KUBECTL_DIFF_COMMAND="kubectl"
+
 if [ -n "$DEPLOY_NAMESPACE" ]; then
     HELM_COMMAND="${HELM_COMMAND} -n ${DEPLOY_NAMESPACE}"
+    HELM_TEMPLATE_COMMAND="${HELM_TEMPLATE_COMMAND} -n ${DEPLOY_NAMESPACE}"
+    KUBECTL_DIFF_COMMAND="${KUBECTL_DIFF_COMMAND} -n ${DEPLOY_NAMESPACE}"
 fi
 
 # Create namespace if it doesn't exist. Requires cluster API permissions.
@@ -210,6 +220,7 @@ fi
 
 # Execute Commands
 HELM_COMMAND="${HELM_COMMAND} ${DEPLOY_NAME}"
+HELM_TEMPLATE_COMMAND="${HELM_TEMPLATE_COMMAND} ${DEPLOY_NAME}"
 
 if [ "${HELM_ACTION}" == "install" ]; then
     if [ "${OCI_REGISTRY}" == "true" ]; then
@@ -220,7 +231,18 @@ if [ "${HELM_ACTION}" == "install" ]; then
         fi
     fi
     HELM_COMMAND="${HELM_COMMAND} ${DEPLOY_CHART_PATH}"
+    HELM_TEMPLATE_COMMAND="${HELM_TEMPLATE_COMMAND} ${DEPLOY_CHART_PATH}"
 fi
 
-echo "Executing: ${HELM_COMMAND} ${HELM_EXTRA_ARGS}"
-${HELM_COMMAND} ${HELM_EXTRA_ARGS}
+HELM_COMMAND="${HELM_COMMAND} ${HELM_EXTRA_ARGS}"
+HELM_TEMPLATE_COMMAND="${HELM_TEMPLATE_COMMAND} ${HELM_EXTRA_ARGS}"
+
+if [ "${LOG_DIFF}" == "true" ] && [ "${HELM_ACTION}" == "install" ]; then
+    HELM_TEMPLATE_COMMAND="${HELM_TEMPLATE_COMMAND} --dry-run --skip-tests"
+    KUBECTL_DIFF_COMMAND="${KUBECTL_DIFF_COMMAND} diff --server-side=false"
+    echo "Diffing before applying: ${HELM_TEMPLATE_COMMAND} | ${KUBECTL_DIFF_COMMAND} -f -"
+    ${HELM_TEMPLATE_COMMAND} | ${KUBECTL_DIFF_COMMAND} -f - || true # Ignore kubectl diff exit code
+fi
+
+echo "Executing: ${HELM_COMMAND}"
+${HELM_COMMAND}
