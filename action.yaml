@@ -103,6 +103,10 @@ inputs:
         description: 'Log the diff of the helm chart before applying it, only works with install action.'
         required: false
         default: "false"
+    debug:
+        description: 'Turns on debug mode.'
+        required: false
+        default: "false"
 
 runs:
     using: 'docker'
@@ -138,3 +142,4 @@ runs:
         USE_SECRETS_VALS: ${{ inputs.use-secrets-vals }}
         HELM_EXTRA_ARGS: ${{ inputs.helm-extra-args }}
         LOG_DIFF: ${{ inputs.log-diff }}
+        DEBUG: ${{ inputs.debug }}

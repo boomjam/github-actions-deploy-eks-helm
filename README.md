@@ -69,6 +69,7 @@ The following inputs are available as `step.with` keys:
 | `use-secrets-vals`         | Boolean | Use secrets plugin using vals to evaluate the secrets                                                                                                      |
 | `helm-extra-args`          | String | Append any string containing any extra option that might escape the ones present in this action.                                                            |
 | `log-diff`                 | Boolean | Outputs the diff of changes for `install` action. (Defaults to `false`)                                                                                    |
+| `debug`                    | Boolean | Turns on debug mode (Defaults to `false`)                                                                                                                  |
 
 ## Example 1 - local repo chart
 
